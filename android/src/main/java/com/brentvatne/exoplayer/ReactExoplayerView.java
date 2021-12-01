@@ -284,9 +284,9 @@ class ReactExoplayerView extends FrameLayout implements
             }
         };
 
-        Activity activity = themedReactContext.getCurrentActivity();
-        activity.registerReceiver(pipReceiver, new IntentFilter("onPictureInPictureModeChanged"));
-        activity.registerReceiver(leaveReceiver, new IntentFilter("onUserLeaveHint"));
+        //Activity activity = themedReactContext.getCurrentActivity();
+        //activity.registerReceiver(pipReceiver, new IntentFilter("onPictureInPictureModeChanged"));
+        //activity.registerReceiver(leaveReceiver, new IntentFilter("onUserLeaveHint"));
     }
 
 
@@ -1881,6 +1881,21 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setPictureInPicture(boolean pictureInPicture) {
         isInPictureInPictureMode = pictureInPicture;
+
+        Activity activity = themedReactContext.getCurrentActivity();
+        if(isInPictureInPictureMode){
+            if (activity == null) return;
+            activity.registerReceiver(pipReceiver, new IntentFilter("onPictureInPictureModeChanged"));
+            activity.registerReceiver(leaveReceiver, new IntentFilter("onUserLeaveHint"));
+        }else{
+            if (activity == null) return;
+            try {
+                activity.unregisterReceiver(pipReceiver);
+                activity.unregisterReceiver(leaveReceiver);
+            } catch (Exception ignore) {
+                // ignore if already unregistered
+            }
+        }
     }
 
     public void enterPictureInPictureMode() {
