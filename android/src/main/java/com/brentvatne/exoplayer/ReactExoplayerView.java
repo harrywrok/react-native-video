@@ -3,9 +3,15 @@ package com.brentvatne.exoplayer;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.PictureInPictureParams;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -132,6 +138,8 @@ class ReactExoplayerView extends FrameLayout implements
         DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     }
 
+    private final BroadcastReceiver pipReceiver;
+    private final BroadcastReceiver leaveReceiver;
     private final VideoEventEmitter eventEmitter;
     private final ReactExoplayerConfig config;
     private final DefaultBandwidthMeter bandwidthMeter;
@@ -152,6 +160,7 @@ class ReactExoplayerView extends FrameLayout implements
     private boolean isFullscreen;
     private boolean isInBackground;
     private boolean isPaused;
+    private boolean isInPictureInPictureMode;
     private boolean isBuffering;
     private boolean muted = false;
     private boolean hasAudioFocus = false;
@@ -256,6 +265,28 @@ class ReactExoplayerView extends FrameLayout implements
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         themedReactContext.addLifecycleEventListener(this);
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
+
+        ReactExoplayerView self = this;
+         pipReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                boolean isInPictureInPictureMode = intent.getBooleanExtra("isInPictureInPictureMode", false);
+                self.onPictureInPictureModeChanged(isInPictureInPictureMode);
+            }
+        };
+
+         leaveReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if(isInPictureInPictureMode){
+                    self.enterPictureInPictureMode();
+                }
+            }
+        };
+
+        Activity activity = themedReactContext.getCurrentActivity();
+        activity.registerReceiver(pipReceiver, new IntentFilter("onPictureInPictureModeChanged"));
+        activity.registerReceiver(leaveReceiver, new IntentFilter("onUserLeaveHint"));
     }
 
 
@@ -311,7 +342,7 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onHostPause() {
         isInBackground = true;
-        if (playInBackground) {
+        if (playInBackground || isInPictureInPictureMode) {
             return;
         }
         setPlayWhenReady(false);
@@ -320,6 +351,15 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onHostDestroy() {
         stopPlayback();
+
+        Activity activity = themedReactContext.getCurrentActivity();
+        if (activity == null) return;
+        try {
+            activity.unregisterReceiver(pipReceiver);
+            activity.unregisterReceiver(leaveReceiver);
+        } catch (Exception ignore) {
+            // ignore if already unregistered
+        }
     }
 
     public void cleanUpResources() {
@@ -1837,5 +1877,29 @@ class ReactExoplayerView extends FrameLayout implements
                 removeViewAt(indexOfPC);
             }
         }
+    }
+
+    public void setPictureInPicture(boolean pictureInPicture) {
+        isInPictureInPictureMode = pictureInPicture;
+    }
+
+    public void enterPictureInPictureMode() {
+        PackageManager packageManager = themedReactContext.getPackageManager();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                && packageManager
+                .hasSystemFeature(
+                        PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+            Activity activity = themedReactContext.getCurrentActivity();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PictureInPictureParams.Builder params = new PictureInPictureParams.Builder();
+                activity.enterPictureInPictureMode(params.build());
+            } else {
+                activity.enterPictureInPictureMode();
+            }
+        }
+    }
+
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
+        eventEmitter.pictureInPictureModeChanged(isInPictureInPictureMode);
     }
 }

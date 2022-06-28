@@ -78,6 +78,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_SELECTED_VIDEO_TRACK_VALUE = "value";
     private static final String PROP_HIDE_SHUTTER_VIEW = "hideShutterView";
     private static final String PROP_CONTROLS = "controls";
+    private static final String PROP_PICTURE_IN_PICTURE = "pictureInPicture";
 
     private ReactExoplayerConfig config;
 
@@ -270,6 +271,11 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     @ReactProp(name = PROP_REPORT_BANDWIDTH, defaultBoolean = false)
     public void setReportBandwidth(final ReactExoplayerView videoView, final boolean reportBandwidth) {
         videoView.setReportBandwidth(reportBandwidth);
+    }
+
+    @ReactProp(name = PROP_PICTURE_IN_PICTURE, defaultBoolean = false)
+    public void setPictureInPicture(final ReactExoplayerView videoView, final boolean pictureInPicture) {
+        videoView.setPictureInPicture(pictureInPicture);
     }
 
     @ReactProp(name = PROP_SEEK)
